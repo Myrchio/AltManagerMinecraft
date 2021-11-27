@@ -1,0 +1,3 @@
+prova1@minecraft.net:P1assword
+prova2@minecraft.net:P2assword
+prova3@minecraft.net:P3assword
