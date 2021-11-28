@@ -1,0 +1,3 @@
+SERVER = mc.waraccademy.it
+PREMIUM = true
+SCREEN_PREFIX = alt-
