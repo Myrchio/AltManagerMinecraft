@@ -4,7 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
+	"strconv"
 	"strings"
+	"time"
 )
 
 var fileAccount = "accounts.txt"
@@ -14,15 +18,15 @@ type Account struct {
 	email, password string
 }
 
-func check(e error) {
+func Check(e error) {
 	if e != nil {
 		panic(e)
 	}
 }
 
-func getNumberOfAccounts(fileName string) int {
+func GetNumberOfAccounts(fileName string) int {
 	file, err := os.Open(fileName)
-	check(err)
+	Check(err)
 	scanner := bufio.NewScanner(file)
 
 	var numberOfAccounts int
@@ -33,12 +37,12 @@ func getNumberOfAccounts(fileName string) int {
 	return numberOfAccounts
 }
 
-func getCredentials(fileName string) []Account {
+func GetCredentials(fileName string) []Account {
 	file, err := os.Open(fileName)
-	check(err)
+	Check(err)
 	scanner := bufio.NewScanner(file)
 
-	var list = make([]Account, getNumberOfAccounts(fileName)+1)
+	var list = make([]Account, GetNumberOfAccounts(fileName)+1)
 
 	for i := 0; scanner.Scan(); i++ {
 		list[i].email = scanner.Text()[:strings.IndexByte(scanner.Text(), ':')]
@@ -47,9 +51,9 @@ func getCredentials(fileName string) []Account {
 	return list
 }
 
-func getSettings(fileName string) (string, bool, string) {
+func GetSettings(fileName string) (string, bool, string) {
 	file, err := os.Open(fileName)
-	check(err)
+	Check(err)
 	scanner := bufio.NewScanner(file)
 
 	var server, screenPrefix string
@@ -72,34 +76,54 @@ func getSettings(fileName string) (string, bool, string) {
 	return server, isPremium, screenPrefix
 }
 
-/*
-func executeLoginLinux(list []Account, server string, screen string) bool{
-	command := make([]string, 10)
-	command[0] = "screen"
-	command[1] = "-S"
-	command[3] = "-d"
-	command[4] = "-m"
-	command[5] = "mono"
-	command[6] = "MinecraftClient.exe"
-	command[9] = server
+func KillScreens() {
+	cmd := exec.Command("killall", "screen")
+	err := cmd.Start()
+	Check(err)
+}
 
-	for i:=0; i < len(list); i++ {
-		command[2] = screen + string(rune(i))
-		command[7] = list[i].email
-		command[8] = list[i].password
+func ExecuteLoginLinux(list []Account, server string, screen string) error {
+	command := make([]string, 8)
+	command[0] = "screen"
+	command[1] = "-dmS"
+	command[3] = "mono"
+	command[4] = "MinecraftClient.exe"
+	command[7] = server
+	KillScreens()
+	for i := 0; i < len(list); i++ {
+		command[2] = screen + strconv.Itoa(i+1)
+		command[5] = list[i].email
+		command[6] = list[i].password
 		cmd := exec.Command(command[0], command[1:]...)
 		cmd.Dir = "ConsoleClient"
+		fmt.Println("Logging", list[i].email)
 		err := cmd.Start()
-		check(err)
+		if err != nil {
+			return err
+		}
+		time.Sleep(3 * time.Second)
+
 	}
-	return true
+	return nil
 }
-*/
 
 func main() {
-	serverIP, isPremium, screenPrefix := getSettings(fileSettings)
-	var altList = make([]Account, getNumberOfAccounts(fileAccount)+1)
-	altList = getCredentials(fileAccount)
-	fmt.Println(altList)
-	fmt.Println("SERVER=", serverIP, "\nPREMIUM=", isPremium, "\nSCREEN=", screenPrefix)
+	serverIP, _, screenPrefix := GetSettings(fileSettings)
+	var altList = make([]Account, GetNumberOfAccounts(fileAccount)+1)
+	altList = GetCredentials(fileAccount)
+
+	switch runtime.GOOS {
+	case "linux":
+		err := ExecuteLoginLinux(altList, serverIP, screenPrefix)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			//todo server
+		}
+	case "windows":
+		//todo ExecuteLoginWindows()
+
+	default:
+		fmt.Println("OS not supported")
+	}
 }
